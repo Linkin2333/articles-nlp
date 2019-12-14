@@ -87,7 +87,7 @@ READER_CSV = "csv"            # CLI argument, indicates CSV input type
 READER_JSON = "json"          # CLI argument, indicates JSON input type
 
 OOV_FILE = "/Users/ericbroda/Development/python/gnn/tests/oov.json"
-NUM_ROWS = 100000  # num rows to sample... 1000: 75sec   10000:500sec (~8 min)   100000: 55min
+NUM_ROWS = 1000  # num rows to sample... 1000: 75sec   10000:500sec (~8 min)   100000: 55min
 # INPUT_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-small.csv"
 # TEST_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-test.csv"
 # FIELDS = ["content"]

@@ -3,9 +3,7 @@
 Source code for Medium.com articles discussing Natural Language Processing (NLP) Techniques
 written by [Eric Broda](https://www.linkedin.com/in/ericbroda/)
 
-## Articles
-
-### Graph-Neural-Networks-for-Topic-Modelling.py
+## Graph-Neural-Networks-for-Topic-Modelling.py
 
 Demonstrates how graph neural networks can be used to perform Topic Modelling.  This specific 
 demo reads a corpus of documents (CSV file) to create a "word graph" and word features for 
@@ -24,5 +22,27 @@ StellarGraph offers many types of GNN - the GraphSAGE GNN is used in this demons
 
 The full article for this demo is available at here (TBD).
 
+### Installation Instructions
 
+1. Install the dependant packages:
 
+```
+pip install -r requirements.txt
+```
+2. Install the spacy vocabulary:
+
+```
+python -m spacy download en_core_web_lg
+```
+
+3.  Get the data:
+
+```
+[command to download the data]
+```
+
+4.  Run the python code:
+
+```
+python Graph-Neural-Networks-for-Topic-Modelling.py
+```

@@ -1,0 +1,7 @@
+11:12:22 clusters INFO Initialization completed...
+11:12:22 clusters INFO Loading data
+11:12:26 clusters INFO Loading spacy vocabulary: en_core_web_lg
+11:12:34 clusters INFO Loading spacy vocabulary completed: en_core_web_lg
+11:12:34 clusters INFO Processing 1000 documents
+11:12:41 clusters INFO Processing 1000 documents completed
+11:12:41 clusters INFO Processing tokens from documents: 1000
