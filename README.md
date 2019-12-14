@@ -20,7 +20,9 @@ is used to create the graphs used in the GNN
 - [StellarGraph](https://github.com/stellargraph/stellargraph): an outstanding graph neural network product.  
 StellarGraph offers many types of GNN - the GraphSAGE GNN is used in this demonstration
 
-The full article for this demo is available at here (TBD).
+The full article for this demo is available at here (TBD).  The article provides a step-by-step
+discussion for graph creation, GNN execution, and topic and document distribution analysis.  Example
+outputs are also provided.
 
 ### Installation Instructions
 
@@ -29,6 +31,7 @@ The full article for this demo is available at here (TBD).
 ```
 pip install -r requirements.txt
 ```
+
 2. Install the spacy vocabulary:
 
 ```
