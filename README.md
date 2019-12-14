@@ -1,5 +1,7 @@
 # articles-nlp
 
+*Under Construction*
+
 Source code for Medium.com articles discussing Natural Language Processing (NLP) Techniques
 written by [Eric Broda](https://www.linkedin.com/in/ericbroda/)
 
