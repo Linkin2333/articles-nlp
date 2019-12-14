@@ -1,5 +1,28 @@
 ##########
-# Embeddings sample - NLP data
+#
+# Source code for Medium.com articles discussing Natural Language Processing (NLP) Techniques
+# written by [Eric Broda](https://www.linkedin.com/in/ericbroda/)
+#
+# Full article: (medium.com)
+# 
+# Instructions:
+#
+# 1. Install the dependant packages:
+#
+#       pip install -r requirements.txt
+#
+# 2. Install the spacy vocabulary:
+#
+#       python -m spacy download en_core_web_lg
+#
+# 3.  Get the data:
+#
+#       [command to download the data]
+#
+# 4.  Run the python code:
+#
+#       python Graph-Neural-Networks-for-Topic-Modelling.py
+#
 ##########
 import networkx as nx
 import random

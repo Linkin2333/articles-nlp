@@ -5,7 +5,9 @@
 Source code for Medium.com articles discussing Natural Language Processing (NLP) Techniques
 written by [Eric Broda](https://www.linkedin.com/in/ericbroda/)
 
-## Graph-Neural-Networks-for-Topic-Modelling.py
+## Topic-Modelling-using-Graph-Neural-Networks.py
+
+Article: [Topic Modelling using Graph Neural Networks](medium.com)
 
 Demonstrates how graph neural networks can be used to perform Topic Modelling.  This specific 
 demo reads a corpus of documents (CSV file) to create a "word graph" and word features for 
@@ -22,32 +24,17 @@ is used to create the graphs used in the GNN
 - [StellarGraph](https://github.com/stellargraph/stellargraph): an outstanding graph neural network product.  
 StellarGraph offers many types of GNN - the GraphSAGE GNN is used in this demonstration
 
-The full article for this demo is available at here (TBD).  The article provides a step-by-step
-discussion for graph creation, GNN execution, and topic and document distribution analysis.  Example
-outputs are also provided.
+Note: Instructions are available in source code file
 
-### Installation Instructions
+## Topic-Modelling-using-Graph-Neural-Network-Embeddings.py
 
-1. Install the dependant packages:
+Article: [Topic-Modelling using Graph Neural Network Embeddings](medium.com)
 
-```
-pip install -r requirements.txt
-```
+## Generating-Word-Embeddings-using-Graph-Neural-Networks.py
 
-2. Install the spacy vocabulary:
+Article: [Generating Word Embeddings using Graph Neural Networks](medium.com)
 
-```
-python -m spacy download en_core_web_lg
-```
+## Topic-Modelling-Comparison-of-Graph-Neural-Network-and-LDA.py
 
-3.  Get the data:
+Article: [Topic Modelling Comparison of Graph-Neural-Network and LDA](medium.com)
 
-```
-[command to download the data]
-```
-
-4.  Run the python code:
-
-```
-python Graph-Neural-Networks-for-Topic-Modelling.py
-```
