@@ -104,14 +104,16 @@ venv.bak/
 .mypy_cache/
 
 # EMB Additions
-*/*.txt
-*/*.png
-*/*.jpg
-*/*.jpeg
-*/*.gif
-*/*.csv
-*/*.html
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.csv
+*.html
+*.pkl
+*.npz
 
 # Custom
-*/*.hd5
-*/model.json
+*.hd5
+model.json

@@ -114,7 +114,7 @@ OOV_FILE = "/Users/ericbroda/Development/python/gnn/tests/oov.json"
 # Number of rows statistics:
 # Time to complete model: 1000: 75sec, 10000:500sec (~8 min), 100000: 55min
 # - Size of model: 1000: 6MB, 2400: 10MB
-NUM_ROWS = 100
+NUM_ROWS = 100000
 # INPUT_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-small.csv"
 # TEST_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-test.csv"
 # FIELDS = ["content"]
@@ -147,6 +147,8 @@ class LoaderDocument:
         self._oov_vectors = None
         self._graph = None
         self._features = None
+        self._feature_columns = None
+        self._feature_labels = None
         self._ssentiments = None
         self._dsentiments = None
         self._tsentiments = None
@@ -303,15 +305,14 @@ class LoaderDocument:
         log().info(f"Creating token features complete")
 
         df = self._create_feature_df(features)
-        # log().debug(f"df: \n{df.columns.values} \n{df.head()}")
 
-        for col in df.columns.values:
-            uniques = df[col].unique().tolist()
-            num_uniques = len(uniques)
-            if num_uniques == 1:
-                log().debug(f"Column {col} has a single ({num_uniques}) unique values")
-            # else:
-            #     log().debug(f"Column {col} has {num_uniques} unique values")
+        # for col in df.columns.values:
+        #     uniques = df[col].unique().tolist()
+        #     num_uniques = len(uniques)
+        #     if num_uniques == 1:
+        #         log().debug(f"Column {col} has a single ({num_uniques}) unique values")
+        #     else:
+        #         log().debug(f"Column {col} has {num_uniques} unique values")
 
         # Sort the column order
         cols = df.columns.tolist()
@@ -321,7 +322,6 @@ class LoaderDocument:
         # Establish the labe as the index
         label_column = "label"
         df.set_index(label_column, inplace=True)
-        # log().debug(f"df: \n{df.columns.values} \n{df.head()}")
 
         nodes = list(self._graph.nodes())
         nodes.sort()
@@ -330,16 +330,23 @@ class LoaderDocument:
         (num_features, num_columns) = df.shape
         if num_nodes != num_features:
             log().debug(f"nodes: {num_nodes} {nodes}")
-            # log().debug(f"features_df: features: {num_features} columns: {num_columns} label: {label_column} \n{df[label_column]} \n{df.columns.values} \n{df.head(1000)}")
             msg = f"Nodes and features length do not match, nodes: {num_nodes} features: {num_features}"
             raise Exception(msg)
 
-        # features_df = features_df[features_df[label].isin(nodes)]
-
         log().info(f"Analysing features complete")
 
-        self._features = df
-        return self._features, label_column
+        print(f"df: \n{df.head()}")
+
+        df = df.reset_index(level=0)
+        labels = df["label"].to_list()
+        columns = list(df.columns.values)
+        df = df.drop("label", axis=1)
+        features = df.to_numpy()
+
+        self._features = features
+        self._feature_columns = columns
+        self._feature_labels = labels
+        return features, labels, columns
 
     def graph(self):
         """
@@ -406,7 +413,7 @@ class LoaderDocument:
         """
         return self._documents_original
 
-    def labels(self):
+    def document_labels(self):
         """
         Return the list of document-to-label mappings
         """
@@ -2005,26 +2012,15 @@ def show_words(data):
     log().info(output)
 
 
-def save_model(graph, features_df, embeddings, clusters, model_file):
+def save_model(graph, labels, features, feature_names, embeddings, clusters, model_file):
     """
     Save a model (which includes its graph, features, embeddings, and clusters)
     """
     edges = graph.edges(data=True)
 
-    df = features_df.reset_index(level=0)
-    labels = df["label"].to_list()
-    columns = list(df.columns.values)
-    df = df.drop("label", axis=1)
-    features = df.to_numpy()
-
-    # print(f"edges: {edges}")
-    # print(f"labels: {labels}")
-    # print(f"columns: {columns}")
-    # print(f"features: {features[0]}")
-
     data = {
         "labels": labels,
-        "columns": columns,
+        "feature_names": feature_names,
         "features": features,
         "edges": edges,
         "embeddings": embeddings,
@@ -2045,7 +2041,7 @@ def load_model(model_file):
         data = pickle.load(f)
 
     labels = data["labels"]
-    columns = data["columns"]
+    feature_names = data["feature_names"]
     edges = data["edges"]
     features = data["features"]
     embeddings = data["embeddings"]
@@ -2055,7 +2051,7 @@ def load_model(model_file):
 
     print(f"graph: {nx.info(graph)}")
     print(f"labels: {labels}")
-    print(f"columns: {columns}")
+    print(f"feature_names: {feature_names}")
     print(f"features: {features[0]}")
     print(f"clusters: {clusters}")
 
@@ -2458,11 +2454,13 @@ def create_distance_model(labels, embeddings, degrees, centers_dict, max_distanc
     return data
 
 
-def create_embeddings(graph, features_df):
+def create_embeddings(graph, features, labels):
     log().info(f"Creating model and embeddings")
 
+    df = pd.DataFrame(features, index=labels)
+
     # Create the model and generators
-    Gs = sg.StellarGraph(graph, node_features=features_df)
+    Gs = sg.StellarGraph(graph, node_features=df)
     unsupervisedSamples = UnsupervisedSampler(Gs, nodes=graph.nodes(), length=5, number_of_walks=3, seed=RANDOM_SEED)
     train_gen = GraphSAGELinkGenerator(Gs, 50, [5, 5], seed=RANDOM_SEED).flow(unsupervisedSamples)
     graphsage = GraphSAGE(layer_sizes=[100, 100], generator=train_gen, bias=True, dropout=0.0, normalize="l2")
@@ -2485,7 +2483,7 @@ def create_embeddings(graph, features_df):
     _ = model.fit_generator(train_gen, epochs=EPOCHS, verbose=2, use_multiprocessing=False, workers=1, shuffle=False)
 
     # Create a generator that serves up nodes for use in embedding prediction / creation
-    node_gen = GraphSAGENodeGenerator(Gs, 50, [5, 5], seed=RANDOM_SEED).flow(nodes)
+    node_gen = GraphSAGENodeGenerator(Gs, 50, [5, 5], seed=RANDOM_SEED).flow(labels)
     embedding_model = keras.Model(inputs=x_inp_src, outputs=x_out_src)
     embeddings = embedding_model.predict_generator(node_gen, workers=4, verbose=2)
     embeddings = embeddings[:, 0, :]
@@ -2875,22 +2873,20 @@ graph = loader.graph()
 show_graph(graph, title="DOCUMENT GRAPH", show_details=True, rows=200)
 
 log().info(f"Creating features")
-features_df, label = loader.features()
-log().info(f"Features completed, shape: {features_df.shape}")
+features, labels, columns = loader.features()
+log().info(f"Features completed, shape: {features.shape}, labels: {len(labels)}")
 
-features_df = features_df.sort_index(axis=0)
+# features_df = features_df.sort_index(axis=0)
 filtered_words = loader.filtered_words()
 document_tokens = loader.document_tokens()
 documents = loader.documents()
-# label_documents = loader.labels()
+# document_labels = loader.labels()
 
 show_document_tokens(document_tokens)
 
 # Get graph information
-nodes = list(graph.nodes)
 degrees = [graph.degree(x) for x in graph.nodes]
 edges = list(graph.edges())
-labels = nodes
 log().info(f"ORIGINAL Documents: {len(document_tokens.keys())} Labels: {len(labels)} Filtered Words (25 shown): {filtered_words[0:25]}")
 
 ##########
@@ -2903,21 +2899,17 @@ log().info(f"ORIGINAL Documents: {len(document_tokens.keys())} Labels: {len(labe
 ##########
 
 # Create the embeddings
-embeddings, graphsage = create_embeddings(graph, features_df)
-
-# Save the embeddings (for use in future articles)
-# embeddings_file = "xembeddings.npz"
-# np.savez_compressed(embeddings_file, embeddings)
-# log().info(f"Embeddings saved in numpy compressed format (NPZ) to file: {embeddings_file}")
+embeddings, graphsage = create_embeddings(graph, features, labels)
 
 # Cluster the data
 log().info(f"Calculating clusters")
 clusters = calc_clusters(embeddings)
 
+# Save the model (for use in future articles)
 model_file = "xmodel.pkl"
-save_model(graph, features_df, embeddings, clusters, model_file)
-load_model(model_file)
-a = 1/0
+save_model(graph, labels, features, columns, embeddings, clusters, model_file)
+log().info(f"Model saved to file: {model_file}")
+# load_model(model_file)
 
 # Calculated (weighted based upon degree) cluster centers
 centers_dict = calc_centers(embeddings, clusters, degrees)
