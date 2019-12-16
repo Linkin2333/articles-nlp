@@ -114,7 +114,7 @@ OOV_FILE = "/Users/ericbroda/Development/python/gnn/tests/oov.json"
 # Number of rows statistics:
 # Time to complete model: 1000: 75sec, 10000:500sec (~8 min), 100000: 55min
 # - Size of model: 1000: 6MB, 2400: 10MB
-NUM_ROWS = 100000
+NUM_ROWS = 100
 # INPUT_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-small.csv"
 # TEST_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-test.csv"
 # FIELDS = ["content"]
