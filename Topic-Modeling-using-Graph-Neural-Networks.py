@@ -2186,8 +2186,17 @@ def calc_metrics(graph):
     return ranks, hits, authorities, degree_centrality
 
 
-def calc_probability(d, max_distance, m=3):
-    p = m * math.exp((-1 * m * (d)))
+def calc_probability(d, m=2):
+    """
+    Return the probability for a distance.
+    Note: An exponential probability
+    curve (full area == 1.0) is used to calculate probabilities.  A data point
+    at zero distance will have a 1.0 probability and a point at the max distance
+    will have a very small (about 0.000001) probability.  Max distance is (mean +/- 3*std).
+    """
+
+    # p = m * math.exp((-1 * m * (d)))
+    p = math.exp(-1 * m * d)
     return p
 
 
@@ -2417,10 +2426,21 @@ def calc_sentiment(text):
     # return info
 
 
-def create_distance_model(labels, embeddings, degrees, centers_dict, max_distance):
+def create_distance_model(labels, embeddings, degrees, centers_dict):
     """
     Return a list of items, with each items containing data for a label/cluster
     """
+
+    # Calculate the maximum distances to use for probability calculations.
+    log().info(f"Calculating distances")
+    cluster_distances = calc_cluster_distances(centers_dict, embeddings)
+    # min_distance = min(cluster_distances)
+    max_distance = max(cluster_distances)
+    # median_distance = statistics.median(cluster_distances)
+    mean_distance = statistics.mean(cluster_distances)
+    std_distance = statistics.stdev(cluster_distances)
+    nmax_distance = (mean_distance + (3 * std_distance)) - (mean_distance - (3 * std_distance))
+    print(f"max_distance: {max_distance} nmax_distance: {nmax_distance}")
 
     data = []
     yprobabilities = []
@@ -2433,8 +2453,14 @@ def create_distance_model(labels, embeddings, degrees, centers_dict, max_distanc
         wprobabilities = []
         for cluster in centers_dict.keys():
             center = centers_dict[cluster]
+
+            # Calculate the actual distance and then normalize it
+            # based upon the normalized max distance (mean +/- std)
             xdistance = calc_distance(coordinate, center)
-            xprobability = calc_probability(xdistance, max_distance)
+            ndistance = (xdistance / max_distance) * nmax_distance
+            # xprobability = calc_probability(xdistance)
+            xprobability = calc_probability(ndistance)
+            # print(f"xdistance: {xdistance}, ndistance: {ndistance} xprobability: {xprobability} nprobability: {nprobability}")
             wprobability = xprobability * degree
 
             item = {
@@ -2876,18 +2902,16 @@ log().info(f"Creating features")
 features, labels, columns = loader.features()
 log().info(f"Features completed, shape: {features.shape}, labels: {len(labels)}")
 
-# features_df = features_df.sort_index(axis=0)
+log().info(f"Getting document info")
 filtered_words = loader.filtered_words()
 document_tokens = loader.document_tokens()
 documents = loader.documents()
-# document_labels = loader.labels()
-
 show_document_tokens(document_tokens)
+log().debug(f"Documents: {len(document_tokens.keys())}, Labels: {len(labels)}, Filtered Words: {len(filtered_words)}")
 
-# Get graph information
+log().info(f"Creating graph")
 degrees = [graph.degree(x) for x in graph.nodes]
 edges = list(graph.edges())
-log().info(f"ORIGINAL Documents: {len(document_tokens.keys())} Labels: {len(labels)} Filtered Words (25 shown): {filtered_words[0:25]}")
 
 ##########
 #
@@ -2898,45 +2922,28 @@ log().info(f"ORIGINAL Documents: {len(document_tokens.keys())} Labels: {len(labe
 #
 ##########
 
-# Create the embeddings
+log().info(f"Creating embeddings")
 embeddings, graphsage = create_embeddings(graph, features, labels)
 
-# Cluster the data
-log().info(f"Calculating clusters")
+log().info(f"Calculating clusters and (weighted centers)")
 clusters = calc_clusters(embeddings)
+centers_dict = calc_centers(embeddings, clusters, degrees)
 
 # Save the model (for use in future articles)
 model_file = "xmodel.pkl"
+log().info(f"Saving model to file: {model_file}")
 save_model(graph, labels, features, columns, embeddings, clusters, model_file)
-log().info(f"Model saved to file: {model_file}")
 # load_model(model_file)
-
-# Calculated (weighted based upon degree) cluster centers
-centers_dict = calc_centers(embeddings, clusters, degrees)
 
 # Plot the data on a 2D chart (note that raw embeddings were re-dimensioned to 2D)
 # This will get us a general view of the clusters - note that the plotting
 # is on the reduced dimensional data so the clustering visualization is a bit inaccurate
-log().info(f"Plotting data")
+# log().info(f"Plotting data")
 # plot(embeddings, clusters, labels)
-log().info(f"Plotting completed")
-
-# Calculate the maximum distances to use for probability calculations.
-# I use max distance at (mean +/- 3*std).  An exponential probability
-# curve (full area == 1.0) is used to calculate probabilities.  A data point
-# at zero distance will have a 1.0 probability and a point at the max distance
-# will have a very small (about 0.000001) probability
-log().info(f"Calculating distances")
-cluster_distances = calc_cluster_distances(centers_dict, embeddings)
-# min_distance = min(cluster_distances)
-# max_distance = max(cluster_distances)
-# median_distance = statistics.median(cluster_distances)
-mean_distance = statistics.mean(cluster_distances)
-std_distance = statistics.stdev(cluster_distances)
-xmax_distance = (mean_distance + 3 * std_distance) - (mean_distance - 3 * std_distance)
+# log().info(f"Plotting completed")
 
 # Get the probability distribution for each node in each cluster
-mod = create_distance_model(labels, embeddings, degrees, centers_dict, xmax_distance)
+mod = create_distance_model(labels, embeddings, degrees, centers_dict)
 y_prob = predict_distance_proba_model(mod)
 y_pred = predict_distance_model(y_prob)
 
