@@ -39,10 +39,7 @@ from stellargraph.mapper import GraphSAGELinkGenerator, GraphSAGENodeGenerator
 from stellargraph.layer import GraphSAGE, link_classification
 from stellargraph.data import UnsupervisedSampler
 
-from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
 from sklearn import metrics
 from sklearn.cluster import KMeans
 import hdbscan
@@ -111,16 +108,21 @@ READER_CSV = "csv"            # CLI argument, indicates CSV input type
 READER_JSON = "json"          # CLI argument, indicates JSON input type
 
 OOV_FILE = "/Users/ericbroda/Development/python/gnn/tests/oov.json"
+
 # Number of rows statistics:
 # Time to complete model: 1000: 75sec, 10000:500sec (~8 min), 100000: 55min
 # - Size of model: 1000: 6MB, 2400: 10MB
 NUM_ROWS = 100
-INPUT_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-small.csv"
-TEST_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-test.csv"
-FIELDS = ["content"]
-DATA_FIELD = "content"
+
+INPUT_FILE = "/Users/ericbroda/Data/misc/amazon-fine-food-reviews/train-0.10.csv"
+FIELDS = ["Id", "ProductId", "UserId", "ProfileName", "HelpfulnessNumerator", "HelpfulnessDenominator", "Score", "Time", "Summary", "Text"]
+DATA_FIELD = "Text"
+
+# INPUT_FILE = "/Users/ericbroda/Data/misc/tech-topics/tech-topics-small.csv"
+# FIELDS = ["content"]
+# DATA_FIELD = "content"
+
 # INPUT_FILE = "/Users/ericbroda/Data/kaggle/abcnews-date-text.csv"
-# TEST_FILE = "/Users/ericbroda/Data/kaggle/abcnews-date-test.csv"
 # FIELDS = ["publish_date", "headline_text"]
 # DATA_FIELD = "headline_text"
 
@@ -334,8 +336,6 @@ class LoaderDocument:
             raise Exception(msg)
 
         log().info(f"Analysing features complete")
-
-        print(f"df: \n{df.head()}")
 
         df = df.reset_index(level=0)
         labels = df["label"].to_list()
@@ -1386,8 +1386,11 @@ class LoaderDocument:
         return documents
 
     def _parse_item(self, depth, edges, parent, token):
-        # log().debug(f"Parsing item, parent: {parent} token: {token}")
+        """
+        Recursively parse an item and create edges
+        """
 
+        # log().debug(f"Parsing item, parent: {parent} token: {token}")
         if parent and token:
             edge = (parent["idx"], token["idx"])
             # log().debug(f"Creating edge: parent: {parent['label']}/{parent['text']}/{parent['idx']} token: {parent['label']}/{parent['text']}/{parent['idx']}")
@@ -1413,6 +1416,10 @@ class LoaderDocument:
             self._parse_item(depth, edges, token, child)
 
     def _parse_sentence(self, root):
+        """
+        Return the graph for an individual sentence (defined by its root)
+        """
+
         edges = []
         # log().debug(f"Parsing sentence, root: {root['label']}/{root['text']}/{root['idx']}")
         depth = 0
@@ -1627,12 +1634,13 @@ class LoaderDocument:
                     row.append(value)
             data.append(row)
         data = np.array(data)
+        # TODO: should create common utilities
         data = redim_data(data, components=components)
         return data
 
     def _show_phrases(self, phrases):
         """
-        Show phrases in human readable format
+        Log phrases in human readable format
         """
         log().debug(self._format_phrases(phrases))
 
@@ -1709,6 +1717,10 @@ class LoaderDocument:
         return False, reason
 
     def _is_important(self, token):
+        """
+        Return True if this toke is considered important
+        Note: Important tokens are consummable tags
+        """
         if token["pos_"] in CONSUMED_TAGS:
             return False
 
@@ -1719,6 +1731,9 @@ class LoaderDocument:
 #
 ##########
 def init():
+    """
+    Initialize random state and logs
+    """
     np.set_printoptions(threshold=100)
     np.set_printoptions(precision=4)
 
@@ -1766,12 +1781,21 @@ def init():
 #
 ##########
 def calc_hash(s):
+    """
+    Return the hash value for a string
+    Note: different algos were used for this, hence encapculating
+    a relatively simple function
+    """
     # s = s.encode('utf-8')
     idx = hash(s)
     return idx
 
 
 def configure_log(level):
+    """
+    Return the log configuration
+    """
+
     cfg = {
         "version": 1,
         "disable_existing_loggers": True,
@@ -1803,6 +1827,7 @@ def filelist(directory):
     """
     Return list of files in a directory
     """
+
     items = []
     for root, subdirs, files in os.walk(directory):
         fqpath = [os.path.join(root, x) for x in files]
@@ -1812,19 +1837,25 @@ def filelist(directory):
 
 def log(name="clusters"):
     """
-    Regurn logger
+    Return logger
     """
     logger = logging.getLogger(name)
     return logger
 
 
 def pretty(x):
+    """
+    Return human readable view of data
+    """
+
     pp = pprint.PrettyPrinter(width=200, compact=True)
     return pp.pformat(x)
 
 
 def scan(embeddings, metric="euclidean", size=5, samples=1):
-    # log().debug(f"Scanning hyperparameters metric: {metric} size: {size} samples: {samples}")
+    """
+    Return DBSCAN data for embeddings
+    """
     dbscan = hdbscan.HDBSCAN(
         metric=metric,
         min_cluster_size=size,
@@ -1835,7 +1866,7 @@ def scan(embeddings, metric="euclidean", size=5, samples=1):
 
 def show_topics(data, num_rows=25, summary=True):
     """
-    Show/log the attributes of topics
+    Log formatted attributes of topics
     """
 
     output = f"\n--- TOPIC SUMMARY ---"
@@ -1847,7 +1878,7 @@ def show_topics(data, num_rows=25, summary=True):
             # print(f"item: {item}")
             output += f" {item['label']}*{float(item['c_prob']):0.3f}"
 
-    output = f"\n--- TOPIC DETAIL ---"
+    output += f"\n\n--- TOPIC DETAIL ---"
     for cluster in data.keys():
         items = data[cluster]
         output += f"\n\n TOPIC: {cluster} (items: {len(items)}, showing first {num_rows} rows for each cluster)"
@@ -1862,7 +1893,7 @@ def show_topics(data, num_rows=25, summary=True):
 
 def show_document_tokens(documents, num_docs=25):
     """
-    Show/log the attributes of document tokens
+    Log formatted attributes of document tokens
     """
 
     output = ""
@@ -1896,7 +1927,7 @@ def show_document_tokens(documents, num_docs=25):
 
 def show_document_topics(data, documents, num_docs=25):
     """
-    Show/log the attributes of document topics
+    Log formatted attributes of document topics
     """
 
     first_doc = list(data.keys())[0]
@@ -1946,7 +1977,7 @@ def show_document_topics(data, documents, num_docs=25):
 
 def show_graph(graph, title="Graph", show_details=True, extended=False, rows=5):
     """
-    Show/log the attributes of a graph
+    Log formatted attributes of a graph
     """
 
     num_nodes, num_edges, details = calc_graph_stats(graph)
@@ -1992,6 +2023,9 @@ def show_graph(graph, title="Graph", show_details=True, extended=False, rows=5):
 
 
 def show_words(data):
+    """
+    Log formatted view of word data
+    """
 
     k = list(data.keys())[0]
     num_probs = len(data[k]["y_prob"])
@@ -2016,6 +2050,7 @@ def save_model(graph, labels, features, feature_names, embeddings, clusters, mod
     """
     Save a model (which includes its graph, features, embeddings, and clusters)
     """
+
     edges = graph.edges(data=True)
 
     data = {
@@ -2064,8 +2099,9 @@ def load_model(model_file):
 #
 ##########
 def calc_centers(xy, labels, degrees):
-
-    # Calculate centers
+    """
+    Return weighted cluster centers
+    """
     items = {}
     for i, x in enumerate(labels):
         emb = [xy[i] for j in range(0, degrees[i])]
@@ -2080,6 +2116,9 @@ def calc_centers(xy, labels, degrees):
 
 
 def calc_clusters(embeddings, method="KMEANS"):
+    """
+    Return cluster labels (each label is assigned a cluster)
+    """
 
     # NOTE: the clusters are identified close to identical with some identifiable differences
     # when using raw or dim reduced embeddings... use raw embeddings (this takes more computing cycles)
@@ -2098,6 +2137,9 @@ def calc_clusters(embeddings, method="KMEANS"):
 
 
 def calc_distance(p1, p2):
+    """
+    Calculate distance between two points
+    """
     from scipy.spatial import distance
     p = [p1]
     vectors = [p2]
@@ -2265,6 +2307,12 @@ def merge_graph(graph, new_edges):
 
 
 def plot(embeddings, clusters, labels):
+    """
+    Plot the data on a 2D chart.  Note that raw embeddings were re-dimensioned to 2D.
+    This will provide a general view of the clusters - note that the plotting
+    is on the reduced dimensional data so the clustering visualization may be
+    a bit inaccurate.
+    """
     emb = redim_data(embeddings, components=2, transformation=TRANSFORMATION)
     x = [xx[0] for xx in emb]
     y = [yy[1] for yy in emb]
@@ -2343,6 +2391,9 @@ def prune_node(graph, node, self_reference=False):
 #
 ##########
 def calc_cluster_distances(centers_dict, coordinates):
+    """
+    Return the distances between the input coordinate and the input cluster centers
+    """
     xdistances = collections.defaultdict(list)
     center_distances = []
     for cluster in centers_dict.keys():
@@ -2352,47 +2403,6 @@ def calc_cluster_distances(centers_dict, coordinates):
             xdistances[cluster].append(xdistance)
             center_distances.append(xdistance)
     return center_distances
-
-
-def calc_document_probabilities(labels, y_prob, documents):
-    # Assemble the data by document such that overall topic of the document can be determined
-
-    # log().debug(f"labels: {len(labels)} {labels}")
-    # log().debug(f"y_prob: {len(y_prob)} {y_prob}")
-
-    num_clusters = 0
-    for item in y_prob:
-        if len(item) > 0:
-            num_clusters = len(item)
-            break
-
-    # Get labels in documents
-    document_clusters = []
-    document_labels = []
-    document_means = []
-    document_probabilities = []
-    for d in documents.keys():
-        tokens = documents[d]
-        ls = [labels.index(token["label"]) for token in tokens if token["label"] in labels]
-        # log().debug(f"ls: {ls}")
-
-        dp = [y_prob[l] for l in ls]
-        if len(dp) == 0:
-            xls = [token["label"] for token in tokens if token["label"] in labels]
-            yls = [(token["label"], labels.index(token["label"])) for token in tokens if token["label"] in labels]
-            log().debug(f"WARN: Document: {d} has no usable tokens, full token list: {xls} {yls}")
-            dm = np.zeros(num_clusters)
-            dc = 0
-        else:
-            dm = np.mean(dp, axis=0)  # Calc mean for by cluster (across each word); number of means == number of clusters
-            dc = np.argmax(dm)
-
-        document_clusters.append(dc)
-        document_labels.append(ls)
-        document_means.append(dm)
-        document_probabilities.append(dp)
-
-    return document_clusters, document_means, document_labels, document_probabilities
 
 
 def calc_sentiment(text):
@@ -2411,6 +2421,10 @@ def calc_sentiment(text):
         "compound": 0,
     }
     return info
+
+    # Additional sentiment for each word
+    # NOTE: this takes a material duration for each word and hence
+    # has been commented out and not used
 
     # from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
     # analyzer = SentimentIntensityAnalyzer()
@@ -2481,7 +2495,9 @@ def create_distance_model(labels, embeddings, degrees, centers_dict):
 
 
 def create_embeddings(graph, features, labels):
-    log().info(f"Creating model and embeddings")
+    """
+    Return the embeddings for the input graph and features
+    """
 
     df = pd.DataFrame(features, index=labels)
 
@@ -2514,53 +2530,14 @@ def create_embeddings(graph, features, labels):
     embeddings = embedding_model.predict_generator(node_gen, workers=4, verbose=2)
     embeddings = embeddings[:, 0, :]
 
-    log().info(f"Creating model and embeddings completed")
-    return embeddings, graphsage
-
-
-def create_logreg_model(embeddings, clusters):
-    # Concatenate the cluster information (targets) to the embeddings
-    log().debug(f"Formatting data")
-    # mclusters = np.matrix([clusters]).T
-    # log().debug(f"embeddings: {embeddings.shape} mclusters: {mclusters.shape} ")
-    # membeddings = np.concatenate((embeddings, mclusters), axis=1)
-    # log().debug(f"Clusters embeddings: {embeddings.shape} \n{embeddings}")
-
-    # Split data into train/test
-    log().debug(f"Splitting data")
-    X = embeddings
-    y = clusters
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.25, test_size=None, stratify=y)
-
-    # Train the model and make a prediction
-    log().debug(f"Training the LogisticRegression model and making a prediction")
-    clf = LogisticRegression(verbose=0, solver='lbfgs', multi_class="auto")
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    # y_prob = clf.predict_proba(X_test)
-
-    classification = classification_report(y_test, y_pred)
-
-    y_pred_counts = pd.Series(y_pred).value_counts().sort_index()
-    y_pred_values = pd.Series(y_pred).tolist()
-    # y_prob_values = pd.DataFrame(y_prob)
-    y_test_counts = pd.Series(y_test).value_counts().sort_index()
-    y_test_values = pd.Series(y_test).tolist()
-
-    log().debug(f"Classification Report: \n{classification}")
-    log().debug(f"Y Test (Actual): \n{y_test_counts}")
-    log().debug(f"Y Prediction: \n{y_pred_counts}")
-
-    log().debug(f"Y Test (Actual): {y_test_values}")
-    log().debug(f"Y Prediction:    {y_pred_values}")
-    # log().debug(f"Y Prediction Probabilities: \n{y_prob_values}")
-
-    return clf
+    return embeddings
 
 
 def dbscan_hyperparameters(embeddings):
     """
-    Run dbscan clustering greedily for different min_samples and e_eps and discover number of resulting clusters and noise points
+    Return the best score cluster labels
+    Run dbscan clustering greedily for different min_samples and e_eps and
+    discover number of resulting clusters and noise points
     """
 
     # Establish lower and upper cluster sizes
@@ -2669,6 +2646,9 @@ def dbscan_hyperparameters(embeddings):
 
 
 def encode(df, column, categories):
+    """
+    Return a data set with the specified column one-hot encoded
+    """
     log().debug(f"Encoding column: {column}, categories: {categories}")
     ohe = OneHotEncoder(sparse=False, categories=[categories])
 
@@ -2691,6 +2671,10 @@ def encode(df, column, categories):
 
 
 def kmeans_hyperparameters(embeddings):
+    """
+    Return the clustered labels with the best score.
+    KMEANS is used across range of cluster sizes and the best score is returned.
+    """
     x_clusters = []
     x_scores = []
 
@@ -2780,6 +2764,9 @@ def predict_distance_proba_model(data):
 
 
 def redim_data(data, components=2, transformation="PCA"):
+    """
+    Return redimensioned input data
+    """
 
     X = data
 
@@ -2827,6 +2814,9 @@ def redim_data(data, components=2, transformation="PCA"):
 
 
 def assemble_data(documents, labels, degrees, y_preds, y_probs):
+    """
+    Return assembed (from input data) cluster, word, and document data details
+    """
 
     # Assemble word data
     word_data = {}
@@ -2923,24 +2913,21 @@ edges = list(graph.edges())
 ##########
 
 log().info(f"Creating embeddings")
-embeddings, graphsage = create_embeddings(graph, features, labels)
+embeddings = create_embeddings(graph, features, labels)
 
 log().info(f"Calculating clusters and (weighted centers)")
 clusters = calc_clusters(embeddings)
 centers_dict = calc_centers(embeddings, clusters, degrees)
 
-# Save the model (for use in future articles)
 model_file = "xmodel.pkl"
 log().info(f"Saving model to file: {model_file}")
 save_model(graph, labels, features, columns, embeddings, clusters, model_file)
 # load_model(model_file)
 
-# Plot the data on a 2D chart (note that raw embeddings were re-dimensioned to 2D)
-# This will get us a general view of the clusters - note that the plotting
-# is on the reduced dimensional data so the clustering visualization is a bit inaccurate
-# log().info(f"Plotting data")
-# plot(embeddings, clusters, labels)
-# log().info(f"Plotting completed")
+# NOTE: this will take a long time with large datasets
+log().info(f"Plotting data")
+plot(embeddings, clusters, labels)
+log().info(f"Plotting completed")
 
 # Get the probability distribution for each node in each cluster
 mod = create_distance_model(labels, embeddings, degrees, centers_dict)
